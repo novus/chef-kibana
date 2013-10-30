@@ -27,8 +27,12 @@ unless Chef::Config[:solo]
 end
 
 if node['kibana']['user'].empty?
-  webserver = node['kibana']['webserver']
-  kibana_user = "#{node[webserver]['user']}"
+  unless node['kibana']['webserver'].empty?
+    webserver = node['kibana']['webserver']
+    kibana_user = node[webserver]['user']
+  else
+    kibana_user = "nobody"
+  end
 else
   kibana_user = node['kibana']['user']
 end
@@ -41,7 +45,11 @@ end
 git "#{node['kibana']['installdir']}/#{node['kibana']['branch']}" do
   repository node['kibana']['repo']
   reference node['kibana']['branch']
-  action :sync
+  if node['kibana']['git']['checkout']
+    action :checkout
+  else
+    action :sync
+  end
   user kibana_user
 end
 
@@ -61,4 +69,6 @@ link "#{node['kibana']['installdir']}/current/app/dashboards/default.json" do
   only_if { !File::symlink?("#{node['kibana']['installdir']}/current/app/dashboards/default.json") }
 end
 
-include_recipe "kibana::#{node['kibana']['webserver']}"
+unless node['kibana']['webserver'].empty?
+  include_recipe "kibana::#{node['kibana']['webserver']}"
+end
